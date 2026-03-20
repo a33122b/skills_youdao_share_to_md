@@ -21,6 +21,10 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const startedAt = /* @__PURE__ */ new Date();
   const bundlePaths = resolveExportBundlePaths(options, options.url);
+  const shouldResetRootDir = !options.output && !options.outputDir;
+  if (shouldResetRootDir) {
+    await fs.rm(bundlePaths.rootDir, { recursive: true, force: true });
+  }
   await fs.mkdir(bundlePaths.rootDir, { recursive: true });
   await fs.mkdir(bundlePaths.assetsDir, { recursive: true });
   let status = "FAILED";
@@ -94,9 +98,9 @@ async function main() {
   process.stdout.write(
     [
       `\u6458\u8981: ${summary}`,
-      `\u7F51\u9875: [${path.basename(bundlePaths.htmlPath)}](${toFileUrl(bundlePaths.htmlPath)})`,
-      `\u6587\u6863: [${path.basename(bundlePaths.markdownPath)}](${toFileUrl(bundlePaths.markdownPath)})`,
-      `\u8D44\u6E90: [${path.basename(bundlePaths.assetsDir)}](${toFileUrl(bundlePaths.assetsDir)})`,
+      `\u7F51\u9875: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
+      `\u6587\u6863: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `\u8D44\u6E90: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
       deployment ? `\u90E8\u7F72: \u6210\u529F` : status === "SUCCESS" ? "\u90E8\u7F72: \u5931\u8D25" : "\u90E8\u7F72: \u8DF3\u8FC7",
       deployment ? `\u672C\u5730\u8BBF\u95EE: ${deployment.localUrl}` : void 0,
       deployment ? `\u516C\u7F51\u8BBF\u95EE: ${deployment.publicUrl}` : void 0,
@@ -244,7 +248,7 @@ function buildBundleName(rawUrl) {
   return guessedName;
 }
 function resolveDownloadsDir() {
-  return path.join(os.homedir(), "Downloads", "youdao");
+  return path.resolve(process.cwd(), "youdao-output");
 }
 async function settlePage(page, timeoutMs) {
   try {

@@ -102,7 +102,11 @@ export async function main() {
   const options = parseArgs(process.argv.slice(2));
   const startedAt = new Date();
   const bundlePaths = resolveExportBundlePaths(options, options.url);
+  const shouldResetRootDir = !options.output && !options.outputDir;
 
+  if (shouldResetRootDir) {
+    await fs.rm(bundlePaths.rootDir, { recursive: true, force: true });
+  }
   await fs.mkdir(bundlePaths.rootDir, { recursive: true });
   await fs.mkdir(bundlePaths.assetsDir, { recursive: true });
 
@@ -185,9 +189,9 @@ export async function main() {
   process.stdout.write(
     [
       `摘要: ${summary}`,
-      `网页: [${path.basename(bundlePaths.htmlPath)}](${toFileUrl(bundlePaths.htmlPath)})`,
-      `文档: [${path.basename(bundlePaths.markdownPath)}](${toFileUrl(bundlePaths.markdownPath)})`,
-      `资源: [${path.basename(bundlePaths.assetsDir)}](${toFileUrl(bundlePaths.assetsDir)})`,
+      `网页: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
+      `文档: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `资源: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
       deployment
         ? `部署: 成功`
         : status === 'SUCCESS'
@@ -364,7 +368,7 @@ function buildBundleName(rawUrl: string): string {
 }
 
 function resolveDownloadsDir(): string {
-  return path.join(os.homedir(), 'Downloads', 'youdao');
+  return path.resolve(process.cwd(), 'youdao-output');
 }
 
 async function settlePage(page: Page, timeoutMs: number): Promise<void> {

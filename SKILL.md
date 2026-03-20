@@ -10,7 +10,7 @@ description: 将 share.note.youdao.com 的完整分享链接自动导出为 Mark
 ## 处理目标
 
 - 导出为 Markdown
-- 默认输出到 `~/Downloads/youdao`
+- 默认输出到工作区内固定目录 `./youdao-output`
 - 默认文件名为 `index.md`、`index.html`、`index.assets.json`
 - 可用 `--output-dir` 指定目录，用 `--output` 指定精确文件路径
 - 资源文件与 Markdown 同级保存，并尽量复用
