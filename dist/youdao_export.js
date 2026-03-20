@@ -36,7 +36,7 @@ async function main() {
     }
     if (!extraction) {
       throw new Error(
-        "Could not export this note. The API path and browser fallback both failed."
+        "\u65E0\u6CD5\u5BFC\u51FA\u8BE5\u7B14\u8BB0\uFF0CAPI \u4E0E\u6D4F\u89C8\u5668\u515C\u5E95\u90FD\u5931\u8D25\u4E86\u3002"
       );
     }
     const assetMap = await downloadAssets(
@@ -75,7 +75,7 @@ async function main() {
     markdownBody = buildFailureMarkdown(options.url, errorMessage);
     outputMarkdown = markdownBody;
     const meta = {
-      title: "Youdao Note",
+      title: "\u6709\u9053\u7B14\u8BB0",
       sourceUrl: options.url,
       status,
       startedAt,
@@ -94,10 +94,9 @@ async function main() {
   process.stdout.write(
     [
       `\u6458\u8981: ${summary}`,
-      `Web: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
-      `\u6587\u6863: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
-      `\u8D44\u6E90: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
-      `\u767D\u677F: [whiteboard-input.json](${path.join(bundlePaths.rootDir, "whiteboard-input.json")})`,
+      `\u7F51\u9875: [${path.basename(bundlePaths.htmlPath)}](${toFileUrl(bundlePaths.htmlPath)})`,
+      `\u6587\u6863: [${path.basename(bundlePaths.markdownPath)}](${toFileUrl(bundlePaths.markdownPath)})`,
+      `\u8D44\u6E90: [${path.basename(bundlePaths.assetsDir)}](${toFileUrl(bundlePaths.assetsDir)})`,
       deployment ? `\u90E8\u7F72: \u6210\u529F` : status === "SUCCESS" ? "\u90E8\u7F72: \u5931\u8D25" : "\u90E8\u7F72: \u8DF3\u8FC7",
       deployment ? `\u672C\u5730\u8BBF\u95EE: ${deployment.localUrl}` : void 0,
       deployment ? `\u516C\u7F51\u8BBF\u95EE: ${deployment.publicUrl}` : void 0,
@@ -153,12 +152,12 @@ function parseArgs(argv) {
 function printUsageAndExit() {
   process.stderr.write(
     [
-      "Usage:",
+      "\u7528\u6CD5\uFF1A",
       "  youdao_export.js <url> [--output out.md] [--output-dir Downloads/]",
       "                    [--assets-dir assets/] [--timeout 45000]",
       '                    [--include-attachments true|false] [--user-agent "..."]',
       "",
-      "Example:",
+      "\u793A\u4F8B\uFF1A",
       '  node dist/youdao_export.js "https://share.note.youdao.com/..." --output note.md',
       ""
     ].join("\n")
@@ -170,14 +169,14 @@ function validateShareUrl(raw) {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error(`Invalid URL: ${raw}`);
+    throw new Error(`URL \u65E0\u6548\uFF1A${raw}`);
   }
   if (!["http:", "https:"].includes(url.protocol)) {
-    throw new Error(`Only http/https URLs are supported: ${raw}`);
+    throw new Error(`\u4EC5\u652F\u6301 http/https \u94FE\u63A5\uFF1A${raw}`);
   }
   const host = url.hostname.toLowerCase();
   if (host !== "share.note.youdao.com" && !host.endsWith(".share.note.youdao.com")) {
-    throw new Error(`Expected a share.note.youdao.com URL, got: ${raw}`);
+    throw new Error(`\u9700\u8981 share.note.youdao.com \u94FE\u63A5\uFF1A${raw}`);
   }
   return url;
 }
@@ -277,7 +276,7 @@ async function extractYoudaoApiDocument(sourceUrl, timeoutMs, userAgent) {
     return null;
   }
   const meta = JSON.parse(metaText);
-  const titleFromMeta = readString(meta, "fileMeta.title") || readString(meta, "entry.name") || readString(meta, "name") || parsed.searchParams.get("title") || "Youdao Note";
+  const titleFromMeta = readString(meta, "fileMeta.title") || readString(meta, "entry.name") || readString(meta, "name") || parsed.searchParams.get("title") || "\u6709\u9053\u7B14\u8BB0";
   const contentUrl = new URL(
     `/yws/api/note/${encodeURIComponent(shareKey)}?sev=j1&editorType=1&unloginId=${encodeURIComponent(unloginId)}`,
     parsed.origin
@@ -351,7 +350,7 @@ function parseYoudaoXmlNote(xml) {
   const assetByUrl = /* @__PURE__ */ new Map();
   const bodyMatch = xml.match(/<body>([\s\S]*?)<\/body>/i);
   if (!bodyMatch) {
-    return { markdown: "", assets, notes: ["Could not find <body> in Youdao XML content."] };
+    return { markdown: "", assets, notes: ["\u5728\u6709\u9053 XML \u5185\u5BB9\u4E2D\u672A\u627E\u5230 <body>\u3002"] };
   }
   const body = bodyMatch[1];
   const blockPattern = /<(para|list-item|image)(\b[^>]*)?>([\s\S]*?)<\/\1>/gi;
@@ -395,7 +394,7 @@ function parseYoudaoXmlNote(xml) {
   }
   const markdown = joinXmlBlocks(blocks);
   if (!markdown) {
-    notes.push("Parsed Youdao XML body but did not find renderable blocks.");
+    notes.push("\u5DF2\u89E3\u6790\u6709\u9053 XML \u4E3B\u4F53\uFF0C\u4F46\u6CA1\u6709\u627E\u5230\u53EF\u6E32\u67D3\u7684\u5185\u5BB9\u5757\u3002");
   }
   return { markdown, assets, notes };
 }
@@ -1002,11 +1001,11 @@ ${text2}
       const markdown = compressWhitespace(rawMarkdown || (fallbackText ? `\`\`\`
 ${fallbackText}
 \`\`\`` : ""));
-      const title = normalizeText2(document.title || "") || normalizeText2(root.querySelector("h1")?.textContent || "") || "Youdao Note";
+      const title = normalizeText2(document.title || "") || normalizeText2(root.querySelector("h1")?.textContent || "") || "\u6709\u9053\u7B14\u8BB0";
       if (!markdown) {
-        notes.push("Primary DOM extraction produced an empty document; the page may require login or a different content root.");
+        notes.push("\u4E3B DOM \u63D0\u53D6\u7ED3\u679C\u4E3A\u7A7A\uFF1B\u9875\u9762\u53EF\u80FD\u9700\u8981\u767B\u5F55\uFF0C\u6216\u5185\u5BB9\u6839\u8282\u70B9\u4E0D\u5BF9\u3002");
       } else if (!rawMarkdown && (embeddedState.length > 0 || networkState.length > 0)) {
-        notes.push("Fell back to embedded page state or network response because the visible DOM was empty.");
+        notes.push("\u53EF\u89C1 DOM \u4E3A\u7A7A\uFF0C\u5DF2\u6539\u7528\u9875\u9762\u5185\u5D4C\u72B6\u6001\u6216\u7F51\u7EDC\u54CD\u5E94\u515C\u5E95\u3002");
       }
       return {
         title,
@@ -1388,7 +1387,7 @@ function buildDocumentSummary(title, markdown, maxLength = 80) {
   }
   const summaryBody = fragments.join("\uFF1B ").replace(/\s+/g, " ").trim();
   if (!summaryBody) {
-    return title || "Youdao Note";
+    return title || "\u6709\u9053\u7B14\u8BB0";
   }
   const combined = summaryBody || truncateTitleForSummary(title);
   return truncateText(combined, maxLength);

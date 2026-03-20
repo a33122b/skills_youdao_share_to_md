@@ -120,7 +120,7 @@ export async function main() {
     }
     if (!extraction) {
       throw new Error(
-        'Could not export this note. The API path and browser fallback both failed.',
+        '无法导出该笔记，API 与浏览器兜底都失败了。',
       );
     }
 
@@ -163,7 +163,7 @@ export async function main() {
     outputMarkdown = markdownBody;
 
     const meta: WebPageMeta = {
-      title: 'Youdao Note',
+      title: '有道笔记',
       sourceUrl: options.url,
       status,
       startedAt,
@@ -185,10 +185,9 @@ export async function main() {
   process.stdout.write(
     [
       `摘要: ${summary}`,
-      `Web: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
-      `文档: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
-      `资源: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
-      `白板: [whiteboard-input.json](${path.join(bundlePaths.rootDir, 'whiteboard-input.json')})`,
+      `网页: [${path.basename(bundlePaths.htmlPath)}](${toFileUrl(bundlePaths.htmlPath)})`,
+      `文档: [${path.basename(bundlePaths.markdownPath)}](${toFileUrl(bundlePaths.markdownPath)})`,
+      `资源: [${path.basename(bundlePaths.assetsDir)}](${toFileUrl(bundlePaths.assetsDir)})`,
       deployment
         ? `部署: 成功`
         : status === 'SUCCESS'
@@ -259,12 +258,12 @@ function parseArgs(argv: string[]): CliOptions {
 function printUsageAndExit(): never {
     process.stderr.write(
       [
-        'Usage:',
+        '用法：',
         '  youdao_export.js <url> [--output out.md] [--output-dir Downloads/]',
         '                    [--assets-dir assets/] [--timeout 45000]',
         '                    [--include-attachments true|false] [--user-agent "..."]',
         '',
-        'Example:',
+        '示例：',
         '  node dist/youdao_export.js "https://share.note.youdao.com/..." --output note.md',
         '',
       ].join('\n'),
@@ -277,16 +276,16 @@ function validateShareUrl(raw: string): URL {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error(`Invalid URL: ${raw}`);
+    throw new Error(`URL 无效：${raw}`);
   }
 
   if (!['http:', 'https:'].includes(url.protocol)) {
-    throw new Error(`Only http/https URLs are supported: ${raw}`);
+    throw new Error(`仅支持 http/https 链接：${raw}`);
   }
 
   const host = url.hostname.toLowerCase();
   if (host !== 'share.note.youdao.com' && !host.endsWith('.share.note.youdao.com')) {
-    throw new Error(`Expected a share.note.youdao.com URL, got: ${raw}`);
+    throw new Error(`需要 share.note.youdao.com 链接：${raw}`);
   }
 
   return url;
@@ -413,7 +412,7 @@ async function extractYoudaoApiDocument(
     readString(meta, 'entry.name') ||
     readString(meta, 'name') ||
     parsed.searchParams.get('title') ||
-    'Youdao Note';
+    '有道笔记';
 
   const contentUrl = new URL(
     `/yws/api/note/${encodeURIComponent(shareKey)}?sev=j1&editorType=1&unloginId=${encodeURIComponent(unloginId)}`,
@@ -494,7 +493,7 @@ export function parseYoudaoXmlNote(xml: string): { markdown: string; assets: Ass
 
   const bodyMatch = xml.match(/<body>([\s\S]*?)<\/body>/i);
   if (!bodyMatch) {
-    return { markdown: '', assets, notes: ['Could not find <body> in Youdao XML content.'] };
+    return { markdown: '', assets, notes: ['在有道 XML 内容中未找到 <body>。'] };
   }
 
   const body = bodyMatch[1];
@@ -545,7 +544,7 @@ export function parseYoudaoXmlNote(xml: string): { markdown: string; assets: Ass
   const markdown = joinXmlBlocks(blocks);
 
   if (!markdown) {
-    notes.push('Parsed Youdao XML body but did not find renderable blocks.');
+    notes.push('已解析有道 XML 主体，但没有找到可渲染的内容块。');
   }
 
   return { markdown, assets, notes };
@@ -1256,12 +1255,12 @@ export async function extractDocument(
       const title =
         normalizeText(document.title || '') ||
         normalizeText((root.querySelector('h1')?.textContent || '') as string) ||
-        'Youdao Note';
+        '有道笔记';
 
       if (!markdown) {
-        notes.push('Primary DOM extraction produced an empty document; the page may require login or a different content root.');
+        notes.push('主 DOM 提取结果为空；页面可能需要登录，或内容根节点不对。');
       } else if (!rawMarkdown && (embeddedState.length > 0 || networkState.length > 0)) {
-        notes.push('Fell back to embedded page state or network response because the visible DOM was empty.');
+        notes.push('可见 DOM 为空，已改用页面内嵌状态或网络响应兜底。');
       }
 
       return {
@@ -1747,7 +1746,7 @@ export function buildDocumentSummary(title: string, markdown: string, maxLength 
 
   const summaryBody = fragments.join('； ').replace(/\s+/g, ' ').trim();
   if (!summaryBody) {
-    return title || 'Youdao Note';
+    return title || '有道笔记';
   }
 
   const combined = summaryBody || truncateTitleForSummary(title);

@@ -1,15 +1,42 @@
 ---
 name: youdao-share-to-md
-description: Auto-export full share.note.youdao.com links to Markdown, with assets saved next to the output.
+description: 将 share.note.youdao.com 的完整分享链接自动导出为 Markdown，并把资源和静态站点一并生成。
 ---
 
-# Youdao Share to Markdown
+# 有道分享页转 Markdown
 
-Use this skill when the user pastes a full `https://share.note.youdao.com/` link.
+适用于用户贴出完整的 `https://share.note.youdao.com/` 链接。
 
-Export to Markdown. Default output goes to `~/Downloads/youdao`. Default names: `index.md`, `index.html`, `index.assets.json`. Use `--output-dir` for a folder or `--output` for an exact file path. Assets live next to the Markdown file and are reused when possible.
-After success, write `whiteboard-input.json` with `youdao`, resource path, and static web path, then auto-run `scripts/auto_deploy_youdao.sh`.
-Final replies should use a fixed summary format: `摘要`, `Web`, `文档`, `资源`, `白板`, `部署`, `本地访问`, `公网访问`, `状态`.
-`部署` should report success or failure. `本地访问` and `公网访问` should be included when deployment succeeds.
-Prefer Chinese; keep code, paths, URLs, product names, and untranslated terms in English.
-Keep this skill terse; use scripts when possible.
+## 处理目标
+
+- 导出为 Markdown
+- 默认输出到 `~/Downloads/youdao`
+- 默认文件名为 `index.md`、`index.html`、`index.assets.json`
+- 可用 `--output-dir` 指定目录，用 `--output` 指定精确文件路径
+- 资源文件与 Markdown 同级保存，并尽量复用
+- 导出成功后自动执行 `scripts/auto_deploy_youdao.sh`
+
+## 通用规则
+
+- 默认用中文输出，保留代码、路径、URL、产品名和必须保留的英文术语
+- 以后生成的同类说明文档、出口内容和总结内容也默认用中文
+- 需要固定参数名、文件名或接口名时，保持原样，不翻译
+- 这份 skill 要尽量简短，能用脚本就不要手写流程
+
+## 固定回复格式
+
+最终回复使用下面这组字段：
+
+- `摘要`
+- `网页`
+- `文档`
+- `资源`
+- `部署`
+- `本地访问`
+- `公网访问`
+- `状态`
+
+其中：
+
+- `部署` 需要说明成功或失败
+- 部署成功时，必须包含 `本地访问` 和 `公网访问`
