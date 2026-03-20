@@ -1,0 +1,11 @@
+{
+  "name": "youdao-share-to-md",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "youdao": "node dist/youdao_export.js",
+    "export": "node dist/youdao_export.js",
+    "export:help": "node dist/youdao_export.js --help",
+    "smoke": "node dist/youdao_export_smoke.js"
+  }
+}
