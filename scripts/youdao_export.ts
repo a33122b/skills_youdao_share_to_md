@@ -70,6 +70,12 @@ interface WebPageMeta {
   errorMessage?: string;
 }
 
+interface DeploymentResult {
+  localUrl: string;
+  publicUrl: string;
+  urlPath: string;
+}
+
 interface ApiNotePayload {
   p?: string;
   tl?: string;
@@ -85,6 +91,12 @@ const PLACEHOLDER_PREFIX = '[[YOUDAO_ASSET_';
 const PLACEHOLDER_SUFFIX = ']]';
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_BUNDLE_BASENAME = 'index';
+const AUTO_DEPLOY_SCRIPT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'scripts',
+  'auto_deploy_youdao.sh',
+);
 
 export async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -99,6 +111,7 @@ export async function main() {
   let markdownBody = '';
   let outputMarkdown = '';
   let errorMessage: string | undefined;
+  let deployment: DeploymentResult | null = null;
 
   try {
     let extraction = await extractYoudaoApiDocument(options.url, options.timeoutMs, options.userAgent);
@@ -140,6 +153,7 @@ export async function main() {
 
     await writeExportBundle(bundlePaths, extraction.assets, assetMap, outputMarkdown, meta);
     await writeWhiteboardHandoff(bundlePaths, meta);
+    deployment = await deployStaticSite(bundlePaths);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);
     const endedAt = new Date();
@@ -175,9 +189,18 @@ export async function main() {
       `文档: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
       `资源: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
       `白板: [whiteboard-input.json](${path.join(bundlePaths.rootDir, 'whiteboard-input.json')})`,
+      deployment
+        ? `部署: 成功`
+        : status === 'SUCCESS'
+          ? '部署: 失败'
+          : '部署: 跳过',
+      deployment ? `本地访问: ${deployment.localUrl}` : undefined,
+      deployment ? `公网访问: ${deployment.publicUrl}` : undefined,
       `状态: ${status === 'SUCCESS' ? '成功' : '失败'}`,
       '',
-    ].join('\n'),
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n'),
   );
 }
 
@@ -1860,6 +1883,32 @@ async function writeWhiteboardHandoff(bundlePaths: ExportBundlePaths, meta: WebP
   };
 
   await fs.writeFile(handoffPath, `${JSON.stringify(handoff, null, 2)}\n`, 'utf8');
+}
+
+async function deployStaticSite(bundlePaths: ExportBundlePaths): Promise<DeploymentResult | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      '/bin/bash',
+      [AUTO_DEPLOY_SCRIPT, bundlePaths.rootDir],
+      {
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+    const output = typeof stdout === 'string' ? stdout : Buffer.from(stdout).toString('utf8');
+    const localMatch = output.match(/本地访问:\s*(\S+)/);
+    const publicMatch = output.match(/公网访问:\s*(\S+)/);
+    if (!localMatch || !publicMatch) {
+      return null;
+    }
+
+    return {
+      localUrl: localMatch[1],
+      publicUrl: publicMatch[1],
+      urlPath: localMatch[1].replace(/^https?:\/\/127\.0\.0\.1:9001\//, ''),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function buildStaticWebDocument(meta: WebPageMeta): string {
