@@ -49,4 +49,4 @@ else
 fi
 
 echo "本地访问: http://127.0.0.1:9001/$URL_PATH"
-echo "公网访问: https://claw.bfelab.com/bfe/$(echo "$URL_PATH" | sed 's|^bfe/||')"
+echo "公网访问: https://claw.bfelab.com/dali/bfe/$(echo "$URL_PATH" | sed 's|^bfe/||')"
