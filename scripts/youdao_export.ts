@@ -10,7 +10,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 type AssetKind = 'image' | 'attachment';
 
@@ -77,6 +79,7 @@ interface ApiNotePayload {
 
 type BrowserContext = any;
 type Page = any;
+const execFileAsync = promisify(execFile);
 
 const PLACEHOLDER_PREFIX = '[[YOUDAO_ASSET_';
 const PLACEHOLDER_SUFFIX = ']]';
@@ -162,11 +165,11 @@ export async function main() {
 
   process.stdout.write(
     [
-      `Summary: ${summary}`,
-      `Status: ${status}`,
-      `Markdown: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `摘要: ${summary}`,
       `Web: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
-      `Assets: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
+      `文档: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `资源: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
+      `状态: ${status === 'SUCCESS' ? '成功' : '失败'}`,
       '',
     ].join('\n'),
   );
@@ -370,15 +373,12 @@ async function extractYoudaoApiDocument(
   if (userAgent) {
     headers['user-agent'] = userAgent;
   }
-  const metaResponse = await fetch(metaUrl, {
-    headers,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!metaResponse.ok) {
+  const metaText = await fetchTextWithFallback(metaUrl, timeoutMs, headers);
+  if (!metaText) {
     return null;
   }
 
-  const meta = (await metaResponse.json()) as Record<string, unknown>;
+  const meta = JSON.parse(metaText) as Record<string, unknown>;
   const titleFromMeta =
     readString(meta, 'fileMeta.title') ||
     readString(meta, 'entry.name') ||
@@ -390,15 +390,12 @@ async function extractYoudaoApiDocument(
     `/yws/api/note/${encodeURIComponent(shareKey)}?sev=j1&editorType=1&unloginId=${encodeURIComponent(unloginId)}`,
     parsed.origin,
   ).toString();
-  const contentResponse = await fetch(contentUrl, {
-    headers,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!contentResponse.ok) {
+  const contentText = await fetchTextWithFallback(contentUrl, timeoutMs, headers);
+  if (!contentText) {
     return null;
   }
 
-  const payload = (await contentResponse.json()) as ApiNotePayload;
+  const payload = JSON.parse(contentText) as ApiNotePayload;
   const xml = typeof payload.content === 'string' ? payload.content : '';
   if (!xml.trim()) {
     return null;
@@ -1244,20 +1241,17 @@ export async function downloadAssets(
         continue;
       }
 
-      const response = await fetch(asset.url, {
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          referer: asset.url,
-        },
+      const fetched = await fetchBinaryWithFallback(asset.url, timeoutMs, {
+        referer: asset.url,
       });
 
-      if (!response.ok) {
+      if (!fetched) {
         map.set(asset.placeholder, asset.url);
         continue;
       }
 
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const ext = inferAssetExtension(asset, buffer, response.headers.get('content-type') ?? '');
+      const { buffer, contentType } = fetched;
+      const ext = inferAssetExtension(asset, buffer, contentType);
       const localName = buildAssetFilename(asset, index, ext);
       const localPath = path.join(assetsDir, localName);
       const relativePath = path.relative(outputDir, localPath).replace(/\\/g, '/');
@@ -1277,6 +1271,122 @@ export async function downloadAssets(
   }
 
   return map;
+}
+
+async function fetchTextWithFallback(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) {
+      return fetchTextWithCurl(url, timeoutMs, headers);
+    }
+    return await response.text();
+  } catch {
+    return fetchTextWithCurl(url, timeoutMs, headers);
+  }
+}
+
+async function fetchBinaryWithFallback(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) {
+      return fetchBinaryWithCurl(url, timeoutMs, headers);
+    }
+    return {
+      buffer: Buffer.from(await response.arrayBuffer()),
+      contentType: response.headers.get('content-type') ?? '',
+    };
+  } catch {
+    return fetchBinaryWithCurl(url, timeoutMs, headers);
+  }
+}
+
+async function fetchTextWithCurl(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('/bin/zsh', ['-lc', buildCurlTextCommand(url, timeoutMs, headers)], {
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    return typeof stdout === 'string' ? stdout : Buffer.from(stdout).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBinaryWithCurl(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'youdao-fetch-'));
+  const bodyPath = path.join(tempDir, 'body.bin');
+  const headerPath = path.join(tempDir, 'headers.txt');
+
+  try {
+    await execFileAsync('/bin/zsh', ['-lc', buildCurlBinaryCommand(url, timeoutMs, headers, bodyPath, headerPath)], {
+      maxBuffer: 50 * 1024 * 1024,
+    });
+
+    const buffer = await fs.readFile(bodyPath);
+    const headersText = await fs.readFile(headerPath, 'utf8').catch(() => '');
+    const contentType = matchCurlHeader(headersText, 'content-type') || '';
+    return { buffer, contentType };
+  } catch {
+    return null;
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+function buildCurlArgs(url: string, timeoutMs: number, headers: Record<string, string>): string[] {
+  const args = ['--location', '--max-time', String(Math.max(1, Math.ceil(timeoutMs / 1000)))];
+  for (const [name, value] of Object.entries(headers)) {
+    if (value) {
+      args.push('--header', `${name}: ${value}`);
+    }
+  }
+  args.push(url);
+  return args;
+}
+
+function buildCurlTextCommand(url: string, timeoutMs: number, headers: Record<string, string>): string {
+  return `curl ${buildCurlArgs(url, timeoutMs, headers).map(shellQuote).join(' ')} --silent --show-error`;
+}
+
+function buildCurlBinaryCommand(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string>,
+  bodyPath: string,
+  headerPath: string,
+): string {
+  return `curl ${buildCurlArgs(url, timeoutMs, headers).map(shellQuote).join(' ')} --silent --show-error --fail --output ${shellQuote(bodyPath)} --dump-header ${shellQuote(headerPath)}`;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function matchCurlHeader(headersText: string, headerName: string): string {
+  const pattern = new RegExp(`^${headerName}\\s*:\\s*(.+)$`, 'im');
+  const match = headersText.match(pattern);
+  return match ? match[1].trim() : '';
 }
 
 export function buildAssetFilename(asset: AssetRef, index: number, extHint?: string): string {

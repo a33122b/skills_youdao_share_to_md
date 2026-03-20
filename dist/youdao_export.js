@@ -79,11 +79,11 @@ async function main() {
   }
   process.stdout.write(
     [
-      `Summary: ${summary}`,
-      `Status: ${status}`,
-      `Markdown: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `\u6458\u8981: ${summary}`,
       `Web: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
-      `Assets: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
+      `\u6587\u6863: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
+      `\u8D44\u6E90: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
+      `\u72B6\u6001: ${status === "SUCCESS" ? "\u6210\u529F" : "\u5931\u8D25"}`,
       ""
     ].join("\n")
   );
