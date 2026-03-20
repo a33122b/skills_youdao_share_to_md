@@ -51,10 +51,10 @@ const previewResult = rewriteAssetPlaceholders(
   ]),
 );
 
-assert.ok(previewResult.includes('<!-- ![image](./assets/001-image-1.png) -->'));
-assert.ok(previewResult.includes('![image](https://example.com/image.png)'));
-assert.ok(previewResult.includes('<!-- [attachment](./assets/002-attachment-1.pdf) -->'));
-assert.ok(previewResult.includes('[attachment](https://example.com/doc.pdf)'));
+assert.ok(previewResult.includes('![image](./assets/001-image-1.png)'));
+assert.ok(previewResult.includes('<!-- remote: https://example.com/image.png -->'));
+assert.ok(previewResult.includes('[attachment](./assets/002-attachment-1.pdf)'));
+assert.ok(previewResult.includes('<!-- remote: https://example.com/doc.pdf -->'));
 
 const summaryResult = buildDocumentSummary(
   'AI行情遇到了一个尴尬期0308@kk.note',
@@ -76,9 +76,16 @@ const bundlePaths = resolveExportBundlePaths(
 );
 
 assert.ok(bundlePaths.rootDir.endsWith('/6fb2d33f370e65488a5cf20dcde96b84'));
-assert.ok(bundlePaths.markdownPath.endsWith('/6fb2d33f370e65488a5cf20dcde96b84.md'));
-assert.ok(bundlePaths.htmlPath.endsWith('/6fb2d33f370e65488a5cf20dcde96b84.html'));
+assert.ok(bundlePaths.markdownPath.endsWith('/index.md'));
+assert.ok(bundlePaths.htmlPath.endsWith('/index.html'));
 assert.ok(bundlePaths.assetsDir.endsWith('/6fb2d33f370e65488a5cf20dcde96b84/assets'));
+assert.ok(bundlePaths.assetsJsonPath.endsWith('/index.assets.json'));
+
+const defaultBundlePaths = resolveExportBundlePaths(
+  { url: 'https://share.note.youdao.com/ynoteshare/index.html?id=6fb2d33f370e65488a5cf20dcde96b84&type=note&_time=1772941234118#/', timeoutMs: 45000, headless: true, includeAttachments: true },
+  'https://share.note.youdao.com/ynoteshare/index.html?id=6fb2d33f370e65488a5cf20dcde96b84&type=note&_time=1772941234118#/',
+);
+assert.ok(defaultBundlePaths.rootDir.includes('/Downloads/youdao/'));
 
 const htmlResult = buildStaticWebDocument({
   title: 'AI行情遇到了一个尴尬期0308@kk.note',
@@ -101,6 +108,7 @@ assert.ok(htmlResult.includes('Markdown 文件'));
 assert.ok(htmlResult.includes('资源目录'));
 assert.ok(htmlResult.includes('HTML 文件'));
 assert.ok(htmlResult.includes('href="'));
+assert.ok(htmlResult.includes('file://'));
 assert.ok(htmlResult.includes('footer-links'));
 assert.ok(htmlResult.includes('电脑预览'));
 assert.ok(htmlResult.includes('iPhone 14'));

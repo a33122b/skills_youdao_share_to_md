@@ -1,7 +1,7 @@
 interface:
   display_name: "Youdao Share to Markdown"
   short_description: "Auto-export Youdao share links"
-  default_prompt: "A full Youdao share link was provided. Export it to Markdown and return clickable links to the generated file and assets. Prefer Chinese in user-facing replies."
+  default_prompt: "A full Youdao share link was provided. Export it to Markdown and return clickable links to the generated file and assets. Prefer Chinese and use scripts when possible."
 
 policy:
   allow_implicit_invocation: true

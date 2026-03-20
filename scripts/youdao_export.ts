@@ -84,6 +84,7 @@ const execFileAsync = promisify(execFile);
 const PLACEHOLDER_PREFIX = '[[YOUDAO_ASSET_';
 const PLACEHOLDER_SUFFIX = ']]';
 const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_BUNDLE_BASENAME = 'index';
 
 export async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -100,10 +101,13 @@ export async function main() {
   let errorMessage: string | undefined;
 
   try {
-    const extraction = await extractYoudaoApiDocument(options.url, options.timeoutMs, options.userAgent);
+    let extraction = await extractYoudaoApiDocument(options.url, options.timeoutMs, options.userAgent);
+    if (!extraction) {
+      extraction = await extractYoudaoBrowserDocument(options);
+    }
     if (!extraction) {
       throw new Error(
-        'Could not export this note with the API-only exporter. Use a public share link or provide a different export path.',
+        'Could not export this note. The API path and browser fallback both failed.',
       );
     }
 
@@ -135,6 +139,7 @@ export async function main() {
     };
 
     await writeExportBundle(bundlePaths, extraction.assets, assetMap, outputMarkdown, meta);
+    await writeWhiteboardHandoff(bundlePaths, meta);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);
     const endedAt = new Date();
@@ -169,6 +174,7 @@ export async function main() {
       `Web: [${path.basename(bundlePaths.htmlPath)}](${bundlePaths.htmlPath})`,
       `文档: [${path.basename(bundlePaths.markdownPath)}](${bundlePaths.markdownPath})`,
       `资源: [${path.basename(bundlePaths.assetsDir)}](${bundlePaths.assetsDir})`,
+      `白板: [whiteboard-input.json](${path.join(bundlePaths.rootDir, 'whiteboard-input.json')})`,
       `状态: ${status === 'SUCCESS' ? '成功' : '失败'}`,
       '',
     ].join('\n'),
@@ -316,10 +322,10 @@ export function resolveExportBundlePaths(options: CliOptions, rawUrl: string): E
 
   return {
     rootDir,
-    markdownPath: path.join(rootDir, `${bundleName}.md`),
-    htmlPath: path.join(rootDir, `${bundleName}.html`),
+    markdownPath: path.join(rootDir, `${DEFAULT_BUNDLE_BASENAME}.md`),
+    htmlPath: path.join(rootDir, `${DEFAULT_BUNDLE_BASENAME}.html`),
     assetsDir: options.assetsDir ? path.resolve(options.assetsDir) : path.join(rootDir, 'assets'),
-    assetsJsonPath: path.join(rootDir, `${bundleName}.assets.json`),
+    assetsJsonPath: path.join(rootDir, `${DEFAULT_BUNDLE_BASENAME}.assets.json`),
     bundleName,
   };
 }
@@ -336,7 +342,7 @@ function buildBundleName(rawUrl: string): string {
 }
 
 function resolveDownloadsDir(): string {
-  return path.join(os.homedir(), 'Downloads');
+  return path.join(os.homedir(), 'Downloads', 'youdao');
 }
 
 async function settlePage(page: Page, timeoutMs: number): Promise<void> {
@@ -413,6 +419,49 @@ async function extractYoudaoApiDocument(
     notes: parsedDoc.notes,
     sourceUrl,
   };
+}
+
+async function extractYoudaoBrowserDocument(options: CliOptions): Promise<ExtractionResult | null> {
+  let browser: any;
+  let context: any;
+
+  try {
+    const playwright = await import('playwright');
+    const chromium = playwright.chromium;
+    browser = await chromium.launch({
+      headless: options.headless,
+    });
+    context = await browser.newContext({
+      viewport: {
+        width: options.viewportWidth,
+        height: options.viewportHeight,
+      },
+      userAgent: options.userAgent,
+      storageState: options.storageState,
+    });
+
+    const page = await context.newPage();
+    await page.goto(options.url, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs });
+    await settlePage(page, options.timeoutMs);
+    const extraction = await extractDocument(page, {
+      sourceUrl: options.url,
+      includeAttachments: options.includeAttachments,
+      networkArtifacts: [],
+    });
+    if (extraction.markdown.trim()) {
+      return extraction;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
+  }
 }
 
 export function parseYoudaoXmlNote(xml: string): { markdown: string; assets: AssetRef[]; notes: string[] } {
@@ -1279,17 +1328,21 @@ async function fetchTextWithFallback(
   headers: Record<string, string> = {},
 ): Promise<string | null> {
   try {
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) {
-      return fetchTextWithCurl(url, timeoutMs, headers);
+    if (typeof fetch === 'function') {
+      const response = await fetch(url, {
+        headers,
+        signal: createAbortSignal(timeoutMs),
+      });
+      if (!response.ok) {
+        return fetchTextWithCurl(url, timeoutMs, headers);
+      }
+      return await response.text();
     }
-    return await response.text();
   } catch {
     return fetchTextWithCurl(url, timeoutMs, headers);
   }
+
+  return fetchTextWithCurl(url, timeoutMs, headers);
 }
 
 async function fetchBinaryWithFallback(
@@ -1298,20 +1351,24 @@ async function fetchBinaryWithFallback(
   headers: Record<string, string> = {},
 ): Promise<{ buffer: Buffer; contentType: string } | null> {
   try {
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) {
-      return fetchBinaryWithCurl(url, timeoutMs, headers);
+    if (typeof fetch === 'function') {
+      const response = await fetch(url, {
+        headers,
+        signal: createAbortSignal(timeoutMs),
+      });
+      if (!response.ok) {
+        return fetchBinaryWithCurl(url, timeoutMs, headers);
+      }
+      return {
+        buffer: Buffer.from(await response.arrayBuffer()),
+        contentType: response.headers.get('content-type') ?? '',
+      };
     }
-    return {
-      buffer: Buffer.from(await response.arrayBuffer()),
-      contentType: response.headers.get('content-type') ?? '',
-    };
   } catch {
     return fetchBinaryWithCurl(url, timeoutMs, headers);
   }
+
+  return fetchBinaryWithCurl(url, timeoutMs, headers);
 }
 
 async function fetchTextWithCurl(
@@ -1381,6 +1438,14 @@ function buildCurlBinaryCommand(
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function createAbortSignal(timeoutMs: number): AbortSignal | undefined {
+  const abortSignal = AbortSignal as typeof AbortSignal & { timeout?: (delay: number) => AbortSignal };
+  if (typeof abortSignal.timeout === 'function') {
+    return abortSignal.timeout(timeoutMs);
+  }
+  return undefined;
 }
 
 function matchCurlHeader(headersText: string, headerName: string): string {
@@ -1566,18 +1631,16 @@ function rewriteSingleAssetPlaceholder(markdown: string, asset: AssetRef, mapped
 
   const render = (kind: AssetKind, label: string): string => {
     if (kind === 'image') {
-      const preview = `![${label}](${visiblePath})`;
       if (localPath) {
-        return `<!-- ![${label}](${localPath}) -->\n${preview}`;
+        return `![${label}](${localPath})\n<!-- remote: ${visiblePath} -->`;
       }
-      return preview;
+      return `![${label}](${visiblePath})`;
     }
 
-    const preview = `[${label}](${visiblePath})`;
     if (localPath) {
-      return `<!-- [${label}](${localPath}) -->\n${preview}`;
+      return `[${label}](${localPath})\n<!-- remote: ${visiblePath} -->`;
     }
-    return preview;
+    return `[${label}](${visiblePath})`;
   };
 
   let output = markdown.replace(imagePattern, (_match, capturedLabel: string) => {
@@ -1597,6 +1660,11 @@ function rewriteSingleAssetPlaceholder(markdown: string, asset: AssetRef, mapped
 
 function normalizeLabel(value: string): string {
   return escapeInlineText(normalizeText(String(value || '')));
+}
+
+function toFileUrl(filePath: string): string {
+  const normalized = path.resolve(filePath).replace(/\\/g, '/');
+  return `file://${normalized.startsWith('/') ? '' : '/'}${normalized}`;
 }
 
 function normalizeText(value: string): string {
@@ -1778,6 +1846,20 @@ async function writeExportBundle(
     'utf8',
   );
   await fs.writeFile(bundlePaths.htmlPath, buildStaticWebDocument(meta), 'utf8');
+}
+
+async function writeWhiteboardHandoff(bundlePaths: ExportBundlePaths, meta: WebPageMeta): Promise<void> {
+  const handoffPath = path.join(bundlePaths.rootDir, 'whiteboard-input.json');
+  const handoff = {
+    skill: 'whiteboard',
+    platform: 'youdao',
+    resourcePath: bundlePaths.assetsDir,
+    staticWebPath: bundlePaths.htmlPath,
+    markdownPath: bundlePaths.markdownPath,
+    sourceUrl: meta.sourceUrl,
+  };
+
+  await fs.writeFile(handoffPath, `${JSON.stringify(handoff, null, 2)}\n`, 'utf8');
 }
 
 export function buildStaticWebDocument(meta: WebPageMeta): string {
@@ -2142,9 +2224,9 @@ export function buildStaticWebDocument(meta: WebPageMeta): string {
         <div class="preview-hint">可切换预览模式，便于检查不同设备效果</div>
       </div>
       <div class="footer-links">
-        <div class="footer-link"><span class="footer-link-label">Markdown 文件：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(meta.markdownPath)}">${escapeHtml(meta.markdownPath)}</a></span></div>
-        <div class="footer-link"><span class="footer-link-label">资源目录：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(meta.assetsDir)}">${escapeHtml(meta.assetsDir)}</a></span></div>
-        <div class="footer-link"><span class="footer-link-label">HTML 文件：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(meta.htmlPath)}">${escapeHtml(meta.htmlPath)}</a></span></div>
+        <div class="footer-link"><span class="footer-link-label">Markdown 文件：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(toFileUrl(meta.markdownPath))}">${escapeHtml(meta.markdownPath)}</a></span></div>
+        <div class="footer-link"><span class="footer-link-label">资源目录：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(toFileUrl(meta.assetsDir))}">${escapeHtml(meta.assetsDir)}</a></span></div>
+        <div class="footer-link"><span class="footer-link-label">HTML 文件：</span><span class="footer-link-path"><a href="${escapeHtmlAttr(toFileUrl(meta.htmlPath))}">${escapeHtml(meta.htmlPath)}</a></span></div>
       </div>
     </div>
   </main>

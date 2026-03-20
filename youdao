@@ -2,4 +2,14 @@
 set -eu
 
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-exec node "$DIR/dist/youdao_export.js" "$@"
+NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
+if [ -z "${NODE_BIN}" ] && [ -x "$HOME/.nvm/versions/node/v22.3.0/bin/node" ]; then
+  NODE_BIN="$HOME/.nvm/versions/node/v22.3.0/bin/node"
+fi
+
+if [ -z "${NODE_BIN}" ]; then
+  printf '%s\n' 'node not found: install node or set NODE_BIN' >&2
+  exit 127
+fi
+
+exec "$NODE_BIN" "$DIR/dist/youdao_export.js" "$@"
