@@ -1,40 +1,40 @@
-# Youdao Share Export Format
+# 有道分享页导出格式
 
-## Goal
+## 目标
 
-Convert a `share.note.youdao.com` share page into a Markdown document that keeps the note's structure readable and keeps assets usable.
+把 `share.note.youdao.com` 分享页转换成 Markdown 文档，既保留笔记结构的可读性，也保证资源仍然可用。
 
-## Extraction priority
+## 提取优先级
 
-1. Embedded state in the page shell
-2. JSON responses observed during navigation
-3. Visible DOM content
+1. 页面外壳里的内嵌状态
+2. 导航过程中观察到的 JSON 响应
+3. 可见的 DOM 内容
 
-Use the first source that provides a complete and internally consistent representation. If a higher-priority source is partial, merge missing pieces from the next source instead of replacing the whole document.
+优先使用第一个能提供完整且内部一致表示的来源。如果高优先级来源只有部分内容，就从下一级来源补齐缺失片段，而不是直接替换整个文档。
 
-## Markdown mapping
+## Markdown 映射
 
-- Headings -> `#`, `##`, `###`
-- Paragraphs -> plain Markdown paragraphs
-- Ordered and unordered lists -> `1.` / `-`
-- Tasks -> `- [ ]` / `- [x]`
-- Quotes -> `>`
-- Code blocks -> fenced code blocks
-- Tables -> Markdown tables when row/column structure is simple
-- Images -> download locally and rewrite to relative paths
-- Attachments -> link to the downloaded file when possible
-- Unknown blocks -> keep as raw text or wrapped HTML to avoid data loss
+- 标题 -> `#`、`##`、`###`
+- 段落 -> 普通 Markdown 段落
+- 有序和无序列表 -> `1.` / `-`
+- 任务 -> `- [ ]` / `- [x]`
+- 引用 -> `>`
+- 代码块 -> 围栏代码块
+- 表格 -> 当行列结构简单时使用 Markdown 表格
+- 图片 -> 下载到本地并改写为相对路径
+- 附件 -> 在可能时链接到已下载文件
+- 未知块 -> 保留为原始文本或包一层 HTML，避免数据丢失
 
-## Asset rules
+## 资源规则
 
-- Deduplicate by original URL.
-- Prefer filenames derived from the source URL or visible label.
-- Keep images and attachments in a sibling `assets/` directory next to the output Markdown file.
-- If a download fails, preserve the original remote URL in the Markdown rather than dropping the reference.
+- 按原始 URL 去重。
+- 优先使用从源 URL 或可见标签派生出的文件名。
+- 将图片和附件保存在输出 Markdown 同级的 `assets/` 目录中。
+- 如果下载失败，不要丢掉引用，而是把原始远程 URL 保留在 Markdown 里。
 
-## Common recovery paths
+## 常见恢复路径
 
-- No content found: retry with a longer wait or a logged-in storage state.
-- Hidden or virtualized DOM: fall back to page-level text plus the best matching content root.
-- Complex tables: preserve as HTML if a faithful Markdown table would lose structure.
-- Unknown custom block: emit a raw HTML block or a quoted fallback with the original text.
+- 没有找到内容：等待更久后重试，或者使用已登录的存储态。
+- DOM 被隐藏或虚拟化：回退到页面级文本，并结合最匹配的内容根节点。
+- 复杂表格：如果忠实转换成 Markdown 表格会丢结构，就保留为 HTML。
+- 未知自定义块：输出原始 HTML 块，或者保留原文并加引用作为兜底。

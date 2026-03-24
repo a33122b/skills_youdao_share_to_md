@@ -43,7 +43,7 @@ Skill 适合解决这类任务：
 
 本项目当前入口是：
 
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/SKILL.md`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/SKILL.md)
+- [`../SKILL.md`](../SKILL.md)
 
 ### 第二层：脚本
 
@@ -59,7 +59,7 @@ Skill 适合解决这类任务：
 
 本项目当前主逻辑在：
 
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/scripts/youdao_export.ts`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/scripts/youdao_export.ts)
+- [`../scripts/youdao_export.ts`](../scripts/youdao_export.ts)
 
 ### 第三层：参考和回归
 
@@ -67,9 +67,9 @@ Skill 适合解决这类任务：
 
 本项目目前有：
 
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/references/youdao-format.md`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/references/youdao-format.md)
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/references/youdao-regression.md`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/references/youdao-regression.md)
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/scripts/youdao_export_smoke.ts`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/scripts/youdao_export_smoke.ts)
+- [`./youdao-format.md`](./youdao-format.md)
+- [`./youdao-regression.md`](./youdao-regression.md)
+- [`../scripts/youdao_export_smoke.ts`](../scripts/youdao_export_smoke.ts)
 
 ## 4. 从 0 到 1 的实施步骤
 
@@ -133,7 +133,7 @@ Skill 的 token 优化，不只在 prompt，还在执行环境：
 
 这个项目最后把入口收成了：
 
-- [`/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/youdao`](/Users/hejian/Documents/project/bfe_project/skills/youdao-share-to-md/youdao)
+- [`../youdao`](../youdao)
 
 ## 5. 这个项目的经验总结
 

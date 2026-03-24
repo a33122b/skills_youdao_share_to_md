@@ -1,27 +1,27 @@
-# Youdao Regression Sample
+# 有道回归样例
 
-This skill includes a small smoke sample to keep the exporter stable while the formatting heuristics evolve.
+这个技能包含一个小型烟测样例，用来在格式化规则持续演进时保持导出器稳定。
 
-## Sample coverage
+## 样例覆盖范围
 
-- Title-like paragraph becomes a Markdown heading
-- Inline bold survives XML parsing
-- Nested list levels keep indentation
-- Image blocks produce downloadable asset placeholders
-- Consecutive images stay separated cleanly
+- 类标题段落会变成 Markdown 标题
+- 行内加粗能够在 XML 解析后保留
+- 嵌套列表层级能保持缩进
+- 图片块会生成可下载的资源占位符
+- 连续图片会被干净地分隔开
 
-## Smoke check
+## 烟测检查
 
-Run the sample parser with:
+使用下面命令运行样例解析器：
 
 ```bash
 node dist/youdao_export_smoke.js
 ```
 
-Expected output characteristics:
+预期输出特征：
 
-- Contains `## AI行情遇到了一个尴尬期 20260308`
-- Contains `- **第一段正**文`
-- Contains `![]([[YOUDAO_ASSET_0]])`
-- Contains `- **二级条目**`
-- Contains two distinct image placeholders in the nested sample
+- 包含 `## AI行情遇到了一个尴尬期 20260308`
+- 包含 `- **第一段正**文`
+- 包含 `![]([[YOUDAO_ASSET_0]])`
+- 包含 `- **二级条目**`
+- 在嵌套样例里包含两个不同的图片占位符
